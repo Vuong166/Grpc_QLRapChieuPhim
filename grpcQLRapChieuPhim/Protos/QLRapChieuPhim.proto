@@ -1,0 +1,97 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "grpcQLRapChieuPhim";
+
+package QLRapChieuPhim;
+
+
+service RapChieuPhim {
+	//Đọc danh sách Thể loại
+	rpc DocDanhSachTheLoai(Empty) returns(TheLoaiOuput);
+    //Đọc danh sách Xếp hạng
+	rpc DocDanhSachXepHangPhim(Empty) returns(XepHangPhimOutput);
+	//Đọc danh sách phim theo Thể loại -> trả về danh sách phim
+    rpc DocPhimTheoTheLoai(PhimTheoTheLoaiInput) returns(PhimTheoTheLoaiOutput);
+    //Xem thông tin chi tiết của phim theo Id
+    rpc DocThongTinPhim(ThongTinPhimInput) returns(ThongTinPhimOutput);
+    //Thêm phim mới
+    rpc ThemPhimMoi(ThemPhimMoiInput) returns(ThongBaoOutput);
+    //Cập nhật nội dung phim
+    rpc CapNhatPhim(CapNhatPhimInput) returns(ThongBaoOutput);
+    //Xóa phim
+    rpc XoaPhim(XoaPhimInput) returns(ThongBaoOutput);
+}
+
+message Empty { }
+
+message TheLoaiOuput {
+	repeated ThongTinTheLoai DanhSachTheLoai = 1;
+}
+
+message ThongTinTheLoai {
+    int32 Id = 1;
+	string Ten = 2;
+}
+
+message XepHangPhimOutput {
+    repeated ThongTinXepHangPhim DanhSachXepHang = 1;
+}
+
+message ThongTinXepHangPhim {
+    int32 Id =1;
+    string KyHieu =2;
+    string Ten = 3;
+}
+
+message PhimTheoTheLoaiInput {
+	int32 TheLoaiId = 1;
+}
+
+message PhimTheoTheLoaiOutput {
+    repeated ThongTinPhim DanhSachPhim = 1;
+}
+
+message ThongTinPhim {
+	int32 Id = 1;
+	string TenPhim = 2;
+	string TenGoc = 3;
+    int32 ThoiLuong = 4;
+    string DaoDien = 5;
+    string DienVien = 6;
+    google.protobuf.Timestamp NgayKhoiChieu = 7;
+    string NoiDung = 8;
+    string NuocSanXuat = 9;
+    string NhaSanXuat = 10;
+    string Poster = 11;
+    string DanhSachTheLoaiId = 12;
+    string NgonNgu = 13;
+    int32 XepHangPhimId = 14;
+    string Trailer = 15;
+}
+
+message ThongTinPhimInput {
+    int32 PhimId = 1;
+}
+
+message ThongTinPhimOutput {
+    ThongTinPhim Phim = 1;
+}
+
+message ThemPhimMoiInput {
+    ThongTinPhim Phim = 1;
+}
+
+message ThongBaoOutput {
+    int32 MaSoLoi = 1;
+    string NoiDungThongBao = 2;
+}
+
+message CapNhatPhimInput {
+    ThongTinPhim Phim = 1;
+}
+
+message XoaPhimInput {
+    int32 PhimId = 1;
+}
