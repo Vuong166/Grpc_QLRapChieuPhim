@@ -22,6 +22,8 @@ service RapChieuPhim {
     rpc CapNhatPhim(CapNhatPhimInput) returns(ThongBaoOutput);
     //Xóa phim
     rpc XoaPhim(XoaPhimInput) returns(ThongBaoOutput);
+    //Tìm phim
+    rpc TimPhim(TimPhimInput) returns(TimPhimOutput);
 }
 
 message Empty { }
@@ -48,6 +50,13 @@ message ThongTinXepHangPhim {
 message PhimTheoTheLoaiInput {
 	int32 TheLoaiId = 1;
 }
+
+message TimPhimInput {
+    string Keyword = 1;
+    int32 CurrentPage = 2;
+    int32 PageSize = 3;
+}
+
 
 message PhimTheoTheLoaiOutput {
     repeated ThongTinPhim DanhSachPhim = 1;
@@ -94,4 +103,10 @@ message CapNhatPhimInput {
 
 message XoaPhimInput {
     int32 PhimId = 1;
+}
+
+message TimPhimOutput {
+    repeated ThongTinPhim DanhSachPhim = 1;
+    int32 CurrentPage = 2;
+    int32 PageCount = 3;
 }

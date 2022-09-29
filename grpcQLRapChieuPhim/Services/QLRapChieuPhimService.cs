@@ -108,20 +108,20 @@ namespace grpcQLRapChieuPhim.Services
                     {
                         Id = phim.Id,
                         TenPhim = phim.TenPhim,
-                        TenGoc = phim.TenGoc,
+                        TenGoc = phim.TenGoc ?? "",
                         DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
-                        DaoDien = phim.DaoDien,
-                        DienVien = phim.DienVien,
+                        DaoDien = phim.DaoDien ?? "",
+                        DienVien = phim.DienVien ?? "",
                         NgayKhoiChieu = phim.NgayKhoiChieu == null ?
                                         Timestamp.FromDateTimeOffset(DateTime.Now.AddYears(10)) :
                                         Timestamp.FromDateTimeOffset(phim.NgayKhoiChieu.Value),
-                        NgonNgu = phim.NgonNgu,
-                        NhaSanXuat = phim.NhaSanXuat,
-                        NoiDung = phim.NoiDung,
-                        NuocSanXuat = phim.NuocSanXuat,
-                        Poster = phim.Poster,
+                        NgonNgu = phim.NgonNgu ?? "",
+                        NhaSanXuat = phim.NhaSanXuat ?? "",
+                        NoiDung = phim.NoiDung ?? "",
+                        NuocSanXuat = phim.NuocSanXuat ?? "",
+                        Poster = phim.Poster ?? "",
                         ThoiLuong = phim.ThoiLuong,
-                        Trailer = phim.Trailer,
+                        Trailer = phim.Trailer ?? "",
                         XepHangPhimId = phim.XepHangPhimId.Value
                     };
                 }
@@ -236,6 +236,61 @@ namespace grpcQLRapChieuPhim.Services
             }
             else
                 response = new ThongBaoOutput { MaSoLoi = 3, NoiDungThongBao = "Id của phim cần hủy không hợp lệ." };
+            return Task.FromResult(response);
+        }
+
+        public override Task<TimPhimOutput> TimPhim(TimPhimInput request, ServerCallContext context)
+        {
+            TimPhimOutput response = new TimPhimOutput();
+
+            if(!string.IsNullOrEmpty(request.Keyword))
+            {
+                var dsTuKhoa = request.Keyword.ToLower().Split(',');
+                var dsPhim = new List<Phim>();
+                foreach (var tukhoa in dsTuKhoa)
+                {
+                    var dsPhimTim = _context.Phims.Where(x => x.TenPhim.ToLower().Contains(tukhoa)
+                                                            || x.TenGoc.ToLower().Contains(tukhoa)
+                                                            || x.DaoDien.ToLower().Contains(tukhoa)
+                                                            || x.DienVien.ToLower().Contains(tukhoa)).ToList();
+                    if (dsPhimTim.Count > 0)
+                        dsPhim.AddRange(dsPhimTim); //tối ưu để loại bỏ phim trùng
+                }
+
+                double Total = dsPhim.Count;
+                var pageCount = (int)Math.Ceiling(Total / request.PageSize);
+                var currentPage = request.CurrentPage;
+                int pageSize = 20;
+                if (request.PageSize > 0) pageSize = request.PageSize;
+
+                if (currentPage > pageCount) currentPage = pageCount;
+
+                dsPhim = dsPhim.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+
+                var phimTims = dsPhim.Select(phim => new ThongTinPhim
+                {
+                    Id = phim.Id,
+                    TenPhim = phim.TenPhim,
+                    TenGoc = phim.TenGoc ?? "",
+                    DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
+                    DaoDien = phim.DaoDien ?? "",
+                    DienVien = phim.DienVien ?? "",
+                    NgayKhoiChieu = phim.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(DateTime.Now.AddYears(10)) : Timestamp.FromDateTimeOffset(phim.NgayKhoiChieu.Value),
+                    NgonNgu = phim.NgonNgu ?? "",
+                    NhaSanXuat = phim.NhaSanXuat ?? "",
+                    NoiDung = phim.NoiDung ?? "",
+                    NuocSanXuat = phim.NuocSanXuat ?? "",
+                    Poster = phim.Poster ?? "",
+                    ThoiLuong = phim.ThoiLuong,
+                    Trailer = phim.Trailer ?? "",
+                    XepHangPhimId = phim.XepHangPhimId.Value
+                });
+
+                response.DanhSachPhim.AddRange(phimTims);
+                response.CurrentPage = currentPage;
+                response.PageCount = pageCount;
+            }
+
             return Task.FromResult(response);
         }
     }
