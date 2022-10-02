@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 #nullable disable
 
-namespace grpcQLRapChieuPhim.Models
+namespace gRPCRapChieuPhim.Models
 {
     public partial class Phong
     {

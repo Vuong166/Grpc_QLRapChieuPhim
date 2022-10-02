@@ -1,6 +1,6 @@
 ﻿{
   "profiles": {
-    "grpcQLRapChieuPhim": {
+    "gRPCRapChieuPhim": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": false,

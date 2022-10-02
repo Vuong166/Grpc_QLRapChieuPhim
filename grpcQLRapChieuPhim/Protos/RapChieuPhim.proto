@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "gRPCRapChieuPhim";
+package QLRapChieuPhim;
+
+service	RapChieuPhim {
+	rpc DanhSachTheLoai(Input.Empty) returns (Output.TheLoaiPhims);
+    rpc DanhSachXepHangPhim(Input.Empty) returns (Output.XepHangPhims);
+    rpc DanhSachPhimTheoTheLoai(Input.PhimTheoTheLoai) returns (Output.Phims);
+    rpc XemThongTinPhim(Input.Phim) returns (Output.Phim);
+    rpc ThemPhimMoi(Input.Phim) returns (Output.ThongBao);
+    rpc CapNhatPhim(Input.Phim) returns (Output.ThongBao);
+    rpc TimPhim(Input.TimPhim) returns (Output.Phims);
+    rpc DanhSachPhimDangChieu (Input.Empty) returns (Output.Phims);
+    rpc DanhSachPhimSapChieu (Input.Empty) returns (Output.Phims);
+}
+
+message Input {
+    message Empty {
+    }
+    message TheLoaiPhim {
+	    int32 Id =1;
+        string Ten = 2;
+    }
+    message XepHangPhim {
+        int32 Id = 1;
+        string KyHieu = 2;
+        string Ten = 3;
+    }
+    message Phim {
+        int32 Id = 1;
+        string TenPhim = 2;
+        string TenGoc = 3;
+        int32 ThoiLuong = 4;
+        string DaoDien = 5;
+        string DienVien = 6;
+        google.protobuf.Timestamp NgayKhoiChieu = 7;
+        string NoiDung = 8;
+        string NuocSanXuat = 9;
+        string NhaSanXuat = 10;
+        string Poster = 11;
+        string DanhSachTheLoaiId = 12;
+        string NgonNgu = 13;
+        int32 XepHangPhimId = 14;
+        string Trailer = 15;
+        repeated TheLoaiPhim TheLoais = 16;
+        XepHangPhim XepHang = 17;
+    }
+    message TimPhim {
+        string KeyWord = 1;
+        int32 PageSize = 2;
+        int32 CurrentPage = 3;
+    }
+    message PhimTheoTheLoai {
+        int32 TheLoaiId = 1;
+        int32 PageSize = 2;
+        int32 CurrentPage = 3;
+    }
+}
+
+message Output {
+    message ThongBao {
+        int32 Maso = 1;
+        string NoiDung = 2;
+    }
+    message TheLoaiPhim {
+	    int32 Id =1;
+        string Ten = 2;
+    }
+    message TheLoaiPhims {
+	    repeated TheLoaiPhim items = 1;
+        string ThongBao = 2;
+    }
+    message Phim {
+	    int32 Id = 1;
+        string TenPhim = 2;
+        string TenGoc = 3;
+        int32 ThoiLuong = 4;
+        string DaoDien = 5;
+        string DienVien = 6;
+        google.protobuf.Timestamp NgayKhoiChieu = 7;
+        string NoiDung = 8;
+        string NuocSanXuat = 9;
+        string NhaSanXuat = 10;
+        string Poster = 11;
+        string DanhSachTheLoaiId = 12;
+        string NgonNgu = 13;
+        int32 XepHangPhimId = 14;
+        string Trailer = 15;
+        repeated TheLoaiPhim TheLoais = 16;
+        XepHangPhim XepHang = 17;
+    }
+    message Phims {
+	    repeated Phim items = 1;
+        int32 PageCount = 2;
+        TheLoaiPhim TheLoaiHienHanh = 3;
+        string ThongBao = 4;
+    }
+    message XepHangPhim {
+        int32 Id = 1;
+        string KyHieu = 2;
+        string Ten = 3;
+    }
+    message XepHangPhims {
+        repeated XepHangPhim items = 1;
+        string ThongBao = 2;
+    }
+}
+
+

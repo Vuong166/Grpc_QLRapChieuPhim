@@ -5,11 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Protos\QLRapChieuPhim.proto" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="Protos\QLRapChieuPhim.proto" GrpcServices="Server" />
+    <None Remove="Protos\RapChieuPhim.proto" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +18,10 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="5.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\RapChieuPhim.proto" GrpcServices="Server" />
   </ItemGroup>
 
 </Project>

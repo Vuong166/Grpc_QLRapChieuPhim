@@ -1,4 +1,6 @@
+using gRPCRapChieuPhim.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
@@ -6,12 +8,20 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace grpcQLRapChieuPhim
+namespace gRPCRapChieuPhim
 {
     public class Program
     {
         public static void Main(string[] args)
         {
+            var envName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                 .AddJsonFile("appsettings.json", optional: false)
+                 .AddJsonFile($"appsettings.{envName}.json", optional: true)
+                 .Build();
+            //Utilities.ConnectionString = configuration.GetConnectionString("QLRapChieuPhimContext");
+            Utilities.ConnectionString = configuration["ConnectionStrings:QLRapChieuPhimContext"];
+            Utilities.NumberOfWeekShow = int.Parse(configuration["ShowingInfo:NumberOfWeekShow"]);
             CreateHostBuilder(args).Build().Run();
         }
 

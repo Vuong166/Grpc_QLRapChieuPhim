@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
-namespace grpcQLRapChieuPhim.Models
+namespace gRPCRapChieuPhim.Models
 {
     public partial class QLRapChieuPhimContext : DbContext
     {
@@ -26,6 +26,7 @@ namespace grpcQLRapChieuPhim.Models
         public virtual DbSet<Rap> Raps { get; set; }
         public virtual DbSet<Rating> Ratings { get; set; }
         public virtual DbSet<SuatChieu> SuatChieus { get; set; }
+        public virtual DbSet<ThanhVien> ThanhViens { get; set; }
         public virtual DbSet<TheLoaiPhim> TheLoaiPhims { get; set; }
         public virtual DbSet<Ve> Ves { get; set; }
         public virtual DbSet<XepHangPhim> XepHangPhims { get; set; }
@@ -232,6 +233,32 @@ namespace grpcQLRapChieuPhim.Models
                 entity.Property(e => e.TenSuatChieu)
                     .IsRequired()
                     .HasMaxLength(100);
+            });
+
+            modelBuilder.Entity<ThanhVien>(entity =>
+            {
+                entity.ToTable("ThanhVien");
+
+                entity.Property(e => e.DienThoai)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.Email)
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.HoTen)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.MatKhau)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.NgaySinh).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<TheLoaiPhim>(entity =>

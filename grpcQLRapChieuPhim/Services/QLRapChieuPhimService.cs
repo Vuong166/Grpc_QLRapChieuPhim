@@ -1,297 +1,463 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
-using grpcQLRapChieuPhim.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
+using gRPCRapChieuPhim.Common;
+using gRPCRapChieuPhim.Models;
+using Microsoft.Extensions.Logging;
 
-namespace grpcQLRapChieuPhim.Services
+namespace gRPCRapChieuPhim.Services
 {
     public class QLRapChieuPhimService : RapChieuPhim.RapChieuPhimBase
     {
         private readonly QLRapChieuPhimContext _context;
-        public QLRapChieuPhimService(QLRapChieuPhimContext context)
+        private readonly ILogger<QLRapChieuPhimService> _logger;
+        public QLRapChieuPhimService(ILogger<QLRapChieuPhimService> logger, QLRapChieuPhimContext context)
         {
+            _logger = logger;
             _context = context;
         }
 
-        public override Task<TheLoaiOuput> DocDanhSachTheLoai(Empty request, ServerCallContext context)
+
+
+
+        public override Task<Output.Types.TheLoaiPhims> DanhSachTheLoai(Input.Types.Empty request, ServerCallContext context)
         {
-            var dsTheLoais = _context.TheLoaiPhims.Select(t => new ThongTinTheLoai
-            {
-                Id = t.Id,
-                Ten = t.Ten
-            }).ToList();            
 
-            TheLoaiOuput response = new TheLoaiOuput();
-            response.DanhSachTheLoai.AddRange(dsTheLoais);
-
+            Output.Types.TheLoaiPhims responseData = new Output.Types.TheLoaiPhims();
             try
             {
-                return Task.FromResult(response);
+                var dsTheLoai = _context.TheLoaiPhims.Select(x => new Output.Types.TheLoaiPhim { Id = x.Id, Ten = x.Ten });
+                responseData.Items.AddRange(dsTheLoai);
             }
             catch (Exception ex)
             {
-                throw new RpcException(Status.DefaultCancelled, ex.Message);
+                responseData.ThongBao = "Lỗi: " + ex.Message;
             }
+            return Task.FromResult(responseData);
         }
 
-        public override Task<XepHangPhimOutput> DocDanhSachXepHangPhim(Empty request, ServerCallContext context)
+
+
+
+        public override Task<Output.Types.XepHangPhims> DanhSachXepHangPhim(Input.Types.Empty request, 
+                    ServerCallContext context)
         {
-            var dsXephangs = _context.XepHangPhims.Select(t => new ThongTinXepHangPhim
-            {
-                Id = t.Id,
-                Ten = t.Ten,
-                KyHieu = t.KyHieu
-            }).ToList();
-
-            XepHangPhimOutput response = new XepHangPhimOutput();
-            response.DanhSachXepHang.AddRange(dsXephangs);
-
+            
+            Output.Types.XepHangPhims responseData = new Output.Types.XepHangPhims();
             try
             {
-                return Task.FromResult(response);
+                //Xử lý trả về danh sách xếp hạng phim
+                var dsXepHang = _context.XepHangPhims.Select(x => new Output.Types.XepHangPhim
+                {
+                    Id = x.Id,
+                    Ten = x.Ten,
+                    KyHieu = x.KyHieu
+                });
+                responseData.Items.AddRange(dsXepHang);
             }
             catch (Exception ex)
             {
-                throw new RpcException(Status.DefaultCancelled, ex.Message);
+                responseData.ThongBao = "Lỗi: " + ex.Message;
             }
+            return Task.FromResult(responseData);
         }
 
-        public override Task<PhimTheoTheLoaiOutput> DocPhimTheoTheLoai(PhimTheoTheLoaiInput request, ServerCallContext context)
-        {
-            var theloaiid = "," + request.TheLoaiId + ",";
-            var dsPhims = _context.Phims.Where(p => p.DanhSachTheLoaiId.Contains(theloaiid))
-                .Select(p => new ThongTinPhim
-                {
-                    Id = p.Id,
-                    TenPhim = p.TenPhim,
-                    TenGoc = p.TenGoc == null ? "" : p.TenGoc,
-                    ThoiLuong = p.ThoiLuong,
-                    DaoDien = p.DaoDien == null ? "" : p.DaoDien,
-                    DienVien = p.DienVien == null ? "" : p.DienVien,
-                    NgayKhoiChieu = p.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(DateTime.Now.AddYears(10)) : Timestamp.FromDateTimeOffset(p.NgayKhoiChieu.Value),
-                    NuocSanXuat = p.NuocSanXuat == null ? "" : p.NuocSanXuat,
-                    NhaSanXuat = p.NhaSanXuat == null ? "" : p.NhaSanXuat,
-                    Poster = p.Poster,
-                    DanhSachTheLoaiId = p.DanhSachTheLoaiId,
-                    NgonNgu = p.NgonNgu == null ? "" : p.NgonNgu,
-                    NoiDung = p.NoiDung,
-                    Trailer = p.Trailer == null ? "" : p.Trailer,
-                    XepHangPhimId = p.XepHangPhimId.Value
-                }).ToList();
-            PhimTheoTheLoaiOutput response = new PhimTheoTheLoaiOutput();
-            response.DanhSachPhim.AddRange(dsPhims);
-            try
-            {
-                return Task.FromResult(response);
-            }
-            catch (Exception ex)
-            {
-                throw new RpcException(Status.DefaultCancelled, ex.Message);
-            }
-        }
 
-        public override Task<ThongTinPhimOutput> DocThongTinPhim(ThongTinPhimInput request, ServerCallContext context)
-        {
-            ThongTinPhimOutput response = new ThongTinPhimOutput();
-            response.Phim = new ThongTinPhim();
 
-            if (request.PhimId > 0)
+
+        public override Task<Output.Types.Phims> DanhSachPhimTheoTheLoai(Input.Types.PhimTheoTheLoai request, 
+            ServerCallContext context)
+        {
+            //Xử lý trả về danh sách phim theo thể loại được chọn
+            var theLoais = _context.TheLoaiPhims.ToList();
+            Output.Types.TheLoaiPhim theLoaiHienHanh;
+            List<Models.Phim> dsPhimTheoTheLoai = null;
+            if (request.TheLoaiId > 0)
             {
-                //Đọc phim theo id
-                var phim = _context.Phims.FirstOrDefault(x => x.Id.Equals(request.PhimId));
-                if (phim != null)
-                {
-                    response.Phim = new ThongTinPhim
-                    {
-                        Id = phim.Id,
-                        TenPhim = phim.TenPhim,
-                        TenGoc = phim.TenGoc ?? "",
-                        DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
-                        DaoDien = phim.DaoDien ?? "",
-                        DienVien = phim.DienVien ?? "",
-                        NgayKhoiChieu = phim.NgayKhoiChieu == null ?
-                                        Timestamp.FromDateTimeOffset(DateTime.Now.AddYears(10)) :
-                                        Timestamp.FromDateTimeOffset(phim.NgayKhoiChieu.Value),
-                        NgonNgu = phim.NgonNgu ?? "",
-                        NhaSanXuat = phim.NhaSanXuat ?? "",
-                        NoiDung = phim.NoiDung ?? "",
-                        NuocSanXuat = phim.NuocSanXuat ?? "",
-                        Poster = phim.Poster ?? "",
-                        ThoiLuong = phim.ThoiLuong,
-                        Trailer = phim.Trailer ?? "",
-                        XepHangPhimId = phim.XepHangPhimId.Value
-                    };
-                }
+                var theLoai = "," + request.TheLoaiId.ToString() + ",";
+                var tl = theLoais.FirstOrDefault(t => t.Id.Equals(request.TheLoaiId));
+                theLoaiHienHanh = new Output.Types.TheLoaiPhim { Id = tl.Id, Ten = tl.Ten };
+                dsPhimTheoTheLoai = _context.Phims
+                    .Where(x => x.DanhSachTheLoaiId.Contains(theLoai)).ToList();
             }
-            return Task.FromResult(response);
-        }
-
-        public override Task<ThongBaoOutput> ThemPhimMoi(ThemPhimMoiInput request, ServerCallContext context)
-        {
-            ThongBaoOutput response; // = new ThongBaoOutput();
-            var phim = request.Phim;
-            if (string.IsNullOrEmpty(phim.TenPhim))
-                response = new ThongBaoOutput { MaSoLoi = 1, NoiDungThongBao = "Tên phim không được rỗng" };
-            else if (phim.ThoiLuong <=0 )
-                response = new ThongBaoOutput { MaSoLoi = 2, NoiDungThongBao = "Thời lượng phải > 0" };
             else
             {
-                try
-                {
-                    var phimmoi = new Phim
-                    {
-                        TenPhim = phim.TenPhim,
-                        TenGoc = phim.TenGoc,
-                        DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
-                        DaoDien = phim.DaoDien,
-                        DienVien = phim.DienVien,
-                        NgayKhoiChieu = phim.NgayKhoiChieu.ToDateTime().Year >= DateTime.Now.Year + 10 ? null : phim.NgayKhoiChieu.ToDateTime(),
-                        NgonNgu = phim.NgonNgu,
-                        NhaSanXuat = phim.NhaSanXuat,
-                        NoiDung = phim.NoiDung,
-                        NuocSanXuat = phim.NuocSanXuat,
-                        Poster = phim.Poster,
-                        ThoiLuong = phim.ThoiLuong,
-                        Trailer = phim.Trailer,
-                        XepHangPhimId = phim.XepHangPhimId
-                    };
-                    _context.Phims.Add(phimmoi);
-                    _context.SaveChanges();
-                    response = new ThongBaoOutput { MaSoLoi = 0, NoiDungThongBao = "Thêm phim mới thành công. " };
-                }
-                catch (Exception ex)
-                {
-                    response = new ThongBaoOutput { MaSoLoi = 3, NoiDungThongBao = "Lỗi thêm phim: " + ex.Message };
-                }
-            }
-            return Task.FromResult(response);
-        }
-
-        public override Task<ThongBaoOutput> CapNhatPhim(CapNhatPhimInput request, ServerCallContext context)
-        {
-            ThongBaoOutput response; // = new ThongBaoOutput();
-            var phim = request.Phim;
-
-            if (phim.Id <= 0)
-                response = new ThongBaoOutput { MaSoLoi = 1, NoiDungThongBao = "Thông tin phim cần cập nhật không hợp lệ" };
-            else
-            {
-                try
-                {
-                    var phimcapnhat = _context.Phims.FirstOrDefault(x => x.Id.Equals(phim.Id));
-                    if(phimcapnhat != null)
-                    {
-                        phimcapnhat.TenPhim = phim.TenPhim;
-                        phimcapnhat.TenGoc = phim.TenGoc;
-                        phimcapnhat.DanhSachTheLoaiId = phim.DanhSachTheLoaiId;
-                        phimcapnhat.DaoDien = phim.DaoDien;
-                        phimcapnhat.DienVien = phim.DienVien;
-                        phimcapnhat.NgayKhoiChieu = phim.NgayKhoiChieu.ToDateTime().Year >= DateTime.Now.Year + 10 ? null : phim.NgayKhoiChieu.ToDateTime();
-                        phimcapnhat.NgonNgu = phim.NgonNgu;
-                        phimcapnhat.NhaSanXuat = phim.NhaSanXuat;
-                        phimcapnhat.NoiDung = phim.NoiDung;
-                        phimcapnhat.NuocSanXuat = phim.NuocSanXuat;
-                        phimcapnhat.Poster = phim.Poster;
-                        phimcapnhat.ThoiLuong = phim.ThoiLuong;
-                        phimcapnhat.Trailer = phim.Trailer;
-                        phimcapnhat.XepHangPhimId = phim.XepHangPhimId;
-                        _context.SaveChanges();
-                        response = new ThongBaoOutput { MaSoLoi = 0, NoiDungThongBao = "Cập nhật thông tin phim thành công. " };
-                    }                    
-                    else
-                        response = new ThongBaoOutput { MaSoLoi = 2, NoiDungThongBao = "Không tìm thấy phim cần cập nhật." };
-                }
-                catch (Exception ex)
-                {
-                    response = new ThongBaoOutput { MaSoLoi = 3, NoiDungThongBao = "Lỗi cập nhật phim: " + ex.Message };
-                }
+                theLoaiHienHanh = new Output.Types.TheLoaiPhim();
+                dsPhimTheoTheLoai = _context.Phims.ToList();
             }
 
-            return Task.FromResult(response);
-        }
+            float numberpage = (float)dsPhimTheoTheLoai.Count() / request.PageSize;
+            int pageCount = (int)Math.Ceiling(numberpage);
+            int currentPage = request.CurrentPage;
+            if (currentPage > pageCount) currentPage = pageCount;
 
-        public override Task<ThongBaoOutput> XoaPhim(XoaPhimInput request, ServerCallContext context)
-        {
-            ThongBaoOutput response;
-            if(request.PhimId > 0)
+            dsPhimTheoTheLoai = dsPhimTheoTheLoai
+                .Skip((currentPage - 1) * request.PageSize)
+                .Take(request.PageSize).ToList();
+
+            Output.Types.Phims responseData = new Output.Types.Phims();
+            if (dsPhimTheoTheLoai.Count > 0)
             {
-                var phim = _context.Phims.FirstOrDefault(x => x.Id.Equals(request.PhimId));
-                if(phim != null)
+                var dsPhim = dsPhimTheoTheLoai
+                .Select(x => new Output.Types.Phim
                 {
-                    var lichchieu = _context.LichChieus.FirstOrDefault(x => x.PhimId.Equals(request.PhimId));
-                    if (lichchieu != null)
-                        response = new ThongBaoOutput { MaSoLoi = 1, NoiDungThongBao = "Phim này đã có lịch chiếu. Không hủy được." };
-                    else
-                    {
-                        _context.Phims.Remove(phim);
-                        _context.SaveChanges();
-                        response = new ThongBaoOutput { MaSoLoi = 0, NoiDungThongBao = "Đã hủy phim thành công." };
-                    }
-                }
-                else
-                    response = new ThongBaoOutput { MaSoLoi = 2, NoiDungThongBao = "Không tìm thấy phim cần hủy." };
-            }
-            else
-                response = new ThongBaoOutput { MaSoLoi = 3, NoiDungThongBao = "Id của phim cần hủy không hợp lệ." };
-            return Task.FromResult(response);
-        }
-
-        public override Task<TimPhimOutput> TimPhim(TimPhimInput request, ServerCallContext context)
-        {
-            TimPhimOutput response = new TimPhimOutput();
-
-            if(!string.IsNullOrEmpty(request.Keyword))
-            {
-                var dsTuKhoa = request.Keyword.ToLower().Split(',');
-                var dsPhim = new List<Phim>();
-                foreach (var tukhoa in dsTuKhoa)
-                {
-                    var dsPhimTim = _context.Phims.Where(x => x.TenPhim.ToLower().Contains(tukhoa)
-                                                            || x.TenGoc.ToLower().Contains(tukhoa)
-                                                            || x.DaoDien.ToLower().Contains(tukhoa)
-                                                            || x.DienVien.ToLower().Contains(tukhoa)).ToList();
-                    if (dsPhimTim.Count > 0)
-                        dsPhim.AddRange(dsPhimTim); //tối ưu để loại bỏ phim trùng
-                }
-
-                double Total = dsPhim.Count;
-                var pageCount = (int)Math.Ceiling(Total / request.PageSize);
-                var currentPage = request.CurrentPage;
-                int pageSize = 20;
-                if (request.PageSize > 0) pageSize = request.PageSize;
-
-                if (currentPage > pageCount) currentPage = pageCount;
-
-                dsPhim = dsPhim.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
-
-                var phimTims = dsPhim.Select(phim => new ThongTinPhim
-                {
-                    Id = phim.Id,
-                    TenPhim = phim.TenPhim,
-                    TenGoc = phim.TenGoc ?? "",
-                    DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
-                    DaoDien = phim.DaoDien ?? "",
-                    DienVien = phim.DienVien ?? "",
-                    NgayKhoiChieu = phim.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(DateTime.Now.AddYears(10)) : Timestamp.FromDateTimeOffset(phim.NgayKhoiChieu.Value),
-                    NgonNgu = phim.NgonNgu ?? "",
-                    NhaSanXuat = phim.NhaSanXuat ?? "",
-                    NoiDung = phim.NoiDung ?? "",
-                    NuocSanXuat = phim.NuocSanXuat ?? "",
-                    Poster = phim.Poster ?? "",
-                    ThoiLuong = phim.ThoiLuong,
-                    Trailer = phim.Trailer ?? "",
-                    XepHangPhimId = phim.XepHangPhimId.Value
+                    Id = x.Id,
+                    TenPhim = x.TenPhim,
+                    TenGoc = string.IsNullOrEmpty(x.TenGoc) ? "" : x.TenGoc,
+                    NgayKhoiChieu = x.NgayKhoiChieu == null ?
+                        Timestamp.FromDateTimeOffset(new DateTime(1900, 1, 1)) :
+                        Timestamp.FromDateTimeOffset(x.NgayKhoiChieu.Value),
+                    DanhSachTheLoaiId = x.DanhSachTheLoaiId,
+                    DaoDien = x.DaoDien ?? "",
+                    DienVien = x.DienVien ?? "",
+                    XepHangPhimId = x.XepHangPhimId ?? 0,
+                    NgonNgu = x.NgonNgu ?? "",
+                    NhaSanXuat = x.NhaSanXuat ?? "",
+                    NoiDung = x.NoiDung ?? "",
+                    NuocSanXuat = x.NuocSanXuat ?? "",
+                    Poster = x.Poster ?? "",
+                    ThoiLuong = x.ThoiLuong,
+                    Trailer = x.Trailer ?? ""
                 });
 
-                response.DanhSachPhim.AddRange(phimTims);
-                response.CurrentPage = currentPage;
-                response.PageCount = pageCount;
+                try
+                {
+                    responseData.Items.AddRange(dsPhim);
+                    responseData.PageCount = pageCount;
+                    responseData.TheLoaiHienHanh = theLoaiHienHanh;
+                }
+                catch (Exception ex)
+                {
+                    responseData.ThongBao = "Lỗi: " + ex.Message;
+                }
+            }
+            else
+            {
+                responseData.ThongBao = "Lỗi: Không tìm thấy thông tin phim";
+            }
+            return Task.FromResult(responseData);
+        }
+
+
+
+
+        public override Task<Output.Types.Phim> XemThongTinPhim(Input.Types.Phim request, 
+                ServerCallContext context)
+        {
+            if(request.Id > 0) {
+                try {
+                    var phim = _context.Phims.FirstOrDefault(x => x.Id.Equals(request.Id));
+                    Output.Types.Phim thongtinPhim = null;
+                    if (phim != null)
+                    {
+                        //Gán thông tin của phim cho thongtinPhim
+                        //...   
+                        thongtinPhim = new Output.Types.Phim
+                        {
+                            Id = phim.Id,
+                            TenPhim = phim.TenPhim,
+                            TenGoc = string.IsNullOrEmpty(phim.TenGoc) ? "" : phim.TenGoc,
+                            NgayKhoiChieu = phim.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(new DateTime(1900, 1, 1)) : Timestamp.FromDateTimeOffset(phim.NgayKhoiChieu.Value),
+                            DanhSachTheLoaiId = phim.DanhSachTheLoaiId,
+                            DaoDien = phim.DaoDien ?? "",
+                            DienVien = phim.DienVien ?? "",
+                            XepHangPhimId = phim.XepHangPhimId ?? 0,
+                            NgonNgu = phim.NgonNgu ?? "",
+                            NhaSanXuat = phim.NhaSanXuat ?? "",
+                            NoiDung = phim.NoiDung ?? "",
+                            NuocSanXuat = phim.NuocSanXuat ?? "",
+                            Poster = phim.Poster ?? "",
+                            ThoiLuong = phim.ThoiLuong,
+                            Trailer = phim.Trailer ?? ""
+                        };
+                    }
+                    else
+                    {
+                        thongtinPhim = new Output.Types.Phim();
+                    }
+                    return Task.FromResult(thongtinPhim);
+                }
+                catch (Exception ex) {
+                    return null;
+                }                
+            }
+            else {
+                return null;
+            }
+        }
+
+
+
+        public override Task<Output.Types.ThongBao> ThemPhimMoi(Input.Types.Phim request, ServerCallContext context)
+        {
+            Output.Types.ThongBao tb = new Output.Types.ThongBao { Maso = 1 };
+            try
+            {
+                var phimMoi = new Models.Phim
+                {
+                    //Gán thông tin từ request vào phimMoi
+                    Id = request.Id,
+                    TenPhim = request.TenPhim,
+                    TenGoc = string.IsNullOrEmpty(request.TenGoc) ? "" : request.TenGoc,
+                    NgayKhoiChieu = request.NgayKhoiChieu == null ? null : request.NgayKhoiChieu.ToDateTime(),
+                    DanhSachTheLoaiId = request.DanhSachTheLoaiId,
+                    DaoDien = request.DaoDien,
+                    DienVien = request.DienVien,
+                    XepHangPhimId = request.XepHangPhimId,
+                    NgonNgu = request.NgonNgu,
+                    NhaSanXuat = request.NhaSanXuat,
+                    NoiDung = request.NoiDung,
+                    NuocSanXuat = request.NuocSanXuat,
+                    Poster = request.Poster,
+                    ThoiLuong = request.ThoiLuong,
+                    Trailer = request.Trailer
+                };
+                var chuoiTB = "";
+                if (string.IsNullOrEmpty(phimMoi.TenPhim))
+                    chuoiTB = "Tên phim phải khác rỗng";
+                if (phimMoi.ThoiLuong <= 0)
+                    chuoiTB += "Thời lượng phim phải > 0";
+
+                if (string.IsNullOrEmpty(chuoiTB))
+                {
+                    _context.Phims.Add(phimMoi);
+                    int kq = _context.SaveChanges();
+                    if (kq > 0)
+                    {
+                        tb.Maso = 0;
+                        chuoiTB = "Lưu thông tin phim mới thành công";
+                    }
+                    else
+                        chuoiTB = "Lưu thông tin phim mới không thành công";
+                }
+
+                tb.NoiDung = chuoiTB;
+            }
+            catch (Exception ex)
+            {
+                tb.NoiDung = "Lỗi: " + ex.Message;
+            }
+            return Task.FromResult(tb);
+        }
+
+
+
+
+        public override Task<Output.Types.ThongBao> CapNhatPhim(Input.Types.Phim request, ServerCallContext context)
+        {
+            Output.Types.ThongBao tb = new Output.Types.ThongBao { Maso = 1 };
+            try {
+                var phimCapNhat = _context.Phims.FirstOrDefault(p => p.Id.Equals(request.Id));
+                if (phimCapNhat != null)
+                {
+                    //Gán thông tin từ request vào phimCapNhat
+                    phimCapNhat.TenPhim = request.TenPhim;
+                    phimCapNhat.TenGoc = string.IsNullOrEmpty(request.TenGoc) ? "" : request.TenGoc;
+                    phimCapNhat.NgayKhoiChieu = request.NgayKhoiChieu == null ? null : request.NgayKhoiChieu.ToDateTime();
+                    phimCapNhat.DanhSachTheLoaiId = request.DanhSachTheLoaiId;
+                    phimCapNhat.DaoDien = request.DaoDien;
+                    phimCapNhat.DienVien = request.DienVien;
+                    phimCapNhat.XepHangPhimId = request.XepHangPhimId;
+                    phimCapNhat.NgonNgu = request.NgonNgu;
+                    phimCapNhat.NhaSanXuat = request.NhaSanXuat;
+                    phimCapNhat.NoiDung = request.NoiDung;
+                    phimCapNhat.NuocSanXuat = request.NuocSanXuat;
+                    phimCapNhat.Poster = request.Poster;
+                    phimCapNhat.ThoiLuong = request.ThoiLuong;
+                    phimCapNhat.Trailer = request.Trailer;
+
+                    var chuoiTB = "";
+                    if (string.IsNullOrEmpty(phimCapNhat.TenPhim))
+                        chuoiTB = "Tên phim phải khác rỗng";
+                    if (phimCapNhat.ThoiLuong <= 0)
+                        chuoiTB += "Thời lượng phim phải > 0";
+
+                    if (string.IsNullOrEmpty(chuoiTB))
+                    {
+                        int kq = _context.SaveChanges();
+                        if (kq > 0)
+                        {
+                            tb.Maso = 0;
+                            chuoiTB = "Lưu thông tin phim mới thành công";
+                        }
+                        else
+                            chuoiTB = "Lưu thông tin phim mới không thành công";
+                    }
+                    tb.NoiDung = chuoiTB;
+                }
+            }
+            catch (Exception ex) {
+                tb.NoiDung = "Lỗi: " + ex.Message;
+            }
+            return Task.FromResult(tb);
+        }
+
+
+
+        public override Task<Output.Types.Phims> TimPhim(Input.Types.TimPhim request, ServerCallContext context)
+        {
+            var theLoais = _context.TheLoaiPhims.ToList();
+            List<Models.Phim> dsPhimTimKiem = new List<Models.Phim>();
+            if (!string.IsNullOrEmpty(request.KeyWord))
+            {
+                var tukhoas = request.KeyWord.Split(new string[] { "," },
+                                    StringSplitOptions.RemoveEmptyEntries);
+                if (tukhoas.Count() > 0)
+                {
+                    foreach (var tk in tukhoas)
+                    {
+                        var phimTimKiem = _context.Phims.Where(x => x.TenPhim.Contains(tk)
+                            || x.TenGoc.Contains(tk) || x.DaoDien.Contains(tk)
+                            || x.DienVien.Contains(tk)).ToList();
+                        if (phimTimKiem != null && phimTimKiem.Count() > 0)
+                            dsPhimTimKiem.AddRange(phimTimKiem);
+                    }
+                }
             }
 
-            return Task.FromResult(response);
+            float numberpage = (float)dsPhimTimKiem.Count() / request.PageSize;
+            int pageCount = (int)Math.Ceiling(numberpage);
+            int currentPage = request.CurrentPage;
+            if (currentPage > pageCount) currentPage = pageCount;
+
+            //var xepHangs = _context.XepHangPhims.ToList();
+            dsPhimTimKiem = dsPhimTimKiem.Skip((currentPage - 1) * request.PageSize)
+                                         .Take(request.PageSize).ToList();
+
+            Output.Types.Phims responseData = new Output.Types.Phims();
+            if (dsPhimTimKiem.Count > 0)
+            {
+                var dsPhim = dsPhimTimKiem
+                .Select(x => new Output.Types.Phim
+                {
+                    //Gán giá trị cho các thuộc tính của phim
+                    Id = x.Id,
+                    TenPhim = x.TenPhim,
+                    TenGoc = string.IsNullOrEmpty(x.TenGoc) ? "" : x.TenGoc,
+                    NgayKhoiChieu = x.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(new DateTime(1900, 1, 1)) : Timestamp.FromDateTimeOffset(x.NgayKhoiChieu.Value),
+                    DanhSachTheLoaiId = x.DanhSachTheLoaiId,
+                    DaoDien = x.DaoDien ?? "",
+                    DienVien = x.DienVien ?? "",
+                    XepHangPhimId = x.XepHangPhimId ?? 0,
+                    NgonNgu = x.NgonNgu ?? "",
+                    NhaSanXuat = x.NhaSanXuat ?? "",
+                    NoiDung = x.NoiDung ?? "",
+                    NuocSanXuat = x.NuocSanXuat ?? "",
+                    Poster = x.Poster ?? "",
+                    ThoiLuong = x.ThoiLuong,
+                    Trailer = x.Trailer ?? ""
+                });
+
+                try
+                {
+                    responseData.Items.AddRange(dsPhim);
+                    responseData.PageCount = pageCount;
+                }
+                catch (Exception ex)
+                {
+                    responseData.ThongBao = "Lỗi: " + ex.Message;
+                }
+            }
+            else
+            {
+                responseData.ThongBao = "Lỗi: Không tìm thấy thông tin phim";
+            }
+            return Task.FromResult(responseData);
+        }
+
+
+
+        public override Task<Output.Types.Phims> DanhSachPhimDangChieu(Input.Types.Empty request, ServerCallContext context)
+        {
+            int SoNgayChieu = Utilities.NumberOfWeekShow * 7;
+            var dsPhimDangChieu = _context.Phims.Where(x=> x.NgayKhoiChieu != null && (x.NgayKhoiChieu <= DateTime.Today && x.NgayKhoiChieu.Value.AddDays(SoNgayChieu) >= DateTime.Today)).ToList();
+            Output.Types.Phims responseData = new Output.Types.Phims();
+            if (dsPhimDangChieu.Count > 0)
+            {
+                var dsPhim = dsPhimDangChieu
+                .Select(x => new Output.Types.Phim
+                {
+                    //Gán giá trị cho các thuộc tính của phim
+                    Id = x.Id,
+                    TenPhim = x.TenPhim,
+                    TenGoc = string.IsNullOrEmpty(x.TenGoc) ? "" : x.TenGoc,
+                    NgayKhoiChieu = x.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(new DateTime(1900, 1, 1)) : Timestamp.FromDateTimeOffset(x.NgayKhoiChieu.Value),
+                    DanhSachTheLoaiId = x.DanhSachTheLoaiId,
+                    DaoDien = x.DaoDien ?? "",
+                    DienVien = x.DienVien ?? "",
+                    XepHangPhimId = x.XepHangPhimId ?? 0,
+                    NgonNgu = x.NgonNgu ?? "",
+                    NhaSanXuat = x.NhaSanXuat ?? "",
+                    NoiDung = x.NoiDung ?? "",
+                    NuocSanXuat = x.NuocSanXuat ?? "",
+                    Poster = x.Poster ?? "",
+                    ThoiLuong = x.ThoiLuong,
+                    Trailer = x.Trailer ?? ""
+                });
+
+                try
+                {
+                    responseData.Items.AddRange(dsPhim);
+                }
+                catch (Exception ex)
+                {
+                    responseData.ThongBao = "Lỗi: " + ex.Message;
+                }
+            }
+            else
+            {
+                responseData.ThongBao = "Lỗi: Không có dữ liệu.";
+            }
+            return Task.FromResult(responseData);
+        }
+
+
+
+        public override Task<Output.Types.Phims> DanhSachPhimSapChieu(Input.Types.Empty request, ServerCallContext context)
+        {
+            int SoNgayChieu = Utilities.NumberOfWeekShow * 21;
+            var dsPhimSapChieu = _context.Phims.Where(x => x.NgayKhoiChieu != null && x.NgayKhoiChieu > DateTime.Today).ToList();
+            Output.Types.Phims responseData = new Output.Types.Phims();
+            if (dsPhimSapChieu.Count > 0)
+            {
+                var dsPhim = dsPhimSapChieu
+                .Select(x => new Output.Types.Phim
+                {
+                    //Gán giá trị cho các thuộc tính của phim
+                    Id = x.Id,
+                    TenPhim = x.TenPhim,
+                    TenGoc = string.IsNullOrEmpty(x.TenGoc) ? "" : x.TenGoc,
+                    NgayKhoiChieu = x.NgayKhoiChieu == null ? Timestamp.FromDateTimeOffset(new DateTime(1900, 1, 1)) : Timestamp.FromDateTimeOffset(x.NgayKhoiChieu.Value),
+                    DanhSachTheLoaiId = x.DanhSachTheLoaiId,
+                    DaoDien = x.DaoDien ?? "",
+                    DienVien = x.DienVien ?? "",
+                    XepHangPhimId = x.XepHangPhimId ?? 0,
+                    NgonNgu = x.NgonNgu ?? "",
+                    NhaSanXuat = x.NhaSanXuat ?? "",
+                    NoiDung = x.NoiDung ?? "",
+                    NuocSanXuat = x.NuocSanXuat ?? "",
+                    Poster = x.Poster ?? "",
+                    ThoiLuong = x.ThoiLuong,
+                    Trailer = x.Trailer ?? ""
+                });
+
+                try
+                {
+                    responseData.Items.AddRange(dsPhim);
+                }
+                catch (Exception ex)
+                {
+                    responseData.ThongBao = "Lỗi: " + ex.Message;
+                }
+            }
+            else
+            {
+                responseData.ThongBao = "Lỗi: Không có dữ liệu.";
+            }
+            return Task.FromResult(responseData);
         }
     }
 }
